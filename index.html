@@ -10,168 +10,298 @@
 
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: #f5f6f8;
       margin: 0;
       padding: 20px;
+      background: #f5f5f5;
+      font-family: Arial, sans-serif;
+      text-align: center;
     }
 
     .box {
       max-width: 500px;
       margin: auto;
       background: white;
-      padding: 25px;
-      border-radius: 20px;
-      box-shadow: 0 5px 25px rgba(0,0,0,.1);
+      padding: 20px;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
     }
 
     h1 {
-      text-align: center;
-      margin-bottom: 5px;
+      margin-top: 0;
+      color: #333;
     }
 
     .sub {
-      text-align: center;
       color: #777;
       margin-bottom: 20px;
     }
 
     #reader {
       width: 100%;
+      max-width: 450px;
+      margin: auto;
     }
 
     #result {
       margin-top: 20px;
-      padding: 20px;
-      border-radius: 15px;
-      text-align: center;
-      font-size: 20px;
-      font-weight: bold;
-      background: #eef1f5;
+      padding: 18px;
+      border-radius: 12px;
+      background: #f5f5f5;
+      font-size: 18px;
+      line-height: 1.6;
+      min-height: 30px;
     }
 
     .success {
-      background: #e5f7ea !important;
-      color: #16803c;
+      background: #d9f7df !important;
+      color: #137333;
+      font-weight: bold;
     }
 
     .error {
-      background: #fde8e8 !important;
-      color: #c62828;
+      background: #ffe0e0 !important;
+      color: #c5221f;
+      font-weight: bold;
     }
 
     button {
-      margin-top: 15px;
-      width: 100%;
-      padding: 14px;
+      margin-top: 20px;
+      padding: 12px 20px;
       border: none;
-      border-radius: 10px;
-      background: #111;
+      border-radius: 8px;
+      background: #333;
       color: white;
       font-size: 16px;
+      cursor: pointer;
     }
   </style>
 </head>
 
 <body>
 
-<div class="box">
+  <div class="box">
 
-  <h1>Bellamy Check-in</h1>
+    <h1>Bellamy Check-in</h1>
 
-  <div class="sub">
-    Đưa QR vào khung để check-in
+    <div class="sub">
+      Đưa QR vào khung để check-in
+    </div>
+
+    <div id="reader"></div>
+
+    <div id="result">
+      📷 Đang chờ quét QR...
+    </div>
+
+    <button onclick="location.reload()">
+      🔄 Quét mã tiếp theo
+    </button>
+
   </div>
 
-  <div id="reader"></div>
-
-  <div id="result">
-    📷 Đang chờ quét QR...
-  </div>
-
-  <button onclick="location.reload()">
-    Quét mã tiếp theo
-  </button>
-
-</div>
 
 <script>
 
-let scanner;
+  // ==============================
+  // LINK APPS SCRIPT
+  // ==============================
 
-// Sẽ thay bằng link Google Apps Script của bạn ở bước sau
-const API_URL = "https://script.google.com/macros/s/AKfycbwxG-7vwKz9yT56KM3lM-v0F_ktD6FFKWvA6GX0qeWqNBvD9LBqF0y_Q4Cohm3k1hRa/exec";  
+  const API_URL =
+    "https://script.google.com/macros/s/AKfycbwxG-7vwKz9yT56KM3lM-v0F_ktD6FFKWvA6GX0qeWqNBvD9LBqF0y_Q4Cohm3k1hRa/exec";
 
-function startScanner() {
 
-  scanner = new Html5QrcodeScanner(
-    "reader",
-    {
-      fps: 10,
-      qrbox: {
-        width: 250,
-        height: 250
-      }
-    },
-    false
-  );
+  let scanner;
 
-  scanner.render(
-    function(decodedText) {
 
-      scanner.clear();
+  // ==============================
+  // HIỂN THỊ KẾT QUẢ
+  // ==============================
 
-      document.getElementById("result").className = "";
+  function showResult(result) {
 
-      document.getElementById("result").innerHTML =
-        "⏳ Đang kiểm tra QR...";
+    const box = document.getElementById("result");
 
-      const callbackName =
-        "qrCallback_" + Date.now();
+    if (result.success) {
 
-      window[callbackName] = function(result) {
+      box.className = "success";
 
-        if (result.success) {
+      box.innerHTML =
+        "🟢 CHECK-IN THÀNH CÔNG" +
+        "<br><br>" +
+        "👤 " + result.name +
+        "<br>" +
+        "🏢 " + result.company;
 
-          document.getElementById("result").className = "success";
+    } else {
 
-          document.getElementById("result").innerHTML =
-            "🟢 CHECK-IN THÀNH CÔNG<br><br>" +
-            result.name +
-            "<br>" +
-            result.company;
+      box.className = "error";
 
-        } else {
+      box.innerHTML = result.message;
 
-          document.getElementById("result").className = "error";
-
-          document.getElementById("result").innerHTML =
-            result.message;
-
-        }
-
-        delete window[callbackName];
-      };
-
-      const script = document.createElement("script");
-
-      script.src =
-        API_URL +
-        "?token=" +
-        encodeURIComponent(decodedText) +
-        "&callback=" +
-        callbackName;
-
-      document.body.appendChild(script);
-    },
-
-    function(error) {
-      // Bỏ qua lỗi quét liên tục
     }
-  );
-}
 
-startScanner();
+  }
+
+
+  // ==============================
+  // GỌI API CHECK-IN
+  // ==============================
+
+  function checkQR(decodedText) {
+
+    const box = document.getElementById("result");
+
+    box.className = "";
+
+    box.innerHTML =
+      "⏳ Đang kiểm tra QR...";
+
+
+    // Tạo tên callback duy nhất
+    const callbackName =
+      "qrCallback_" + Date.now();
+
+
+    let finished = false;
+
+
+    // Callback nhận kết quả từ Apps Script
+    window[callbackName] = function(result) {
+
+      if (finished) return;
+
+      finished = true;
+
+
+      console.log("Kết quả API:", result);
+
+
+      showResult(result);
+
+
+      // Xóa callback
+      delete window[callbackName];
+
+    };
+
+
+    // Tạo script gọi Apps Script
+    const script =
+      document.createElement("script");
+
+
+    script.src =
+      API_URL +
+      "?token=" +
+      encodeURIComponent(decodedText) +
+      "&callback=" +
+      encodeURIComponent(callbackName);
+
+
+    // Nếu script tải thành công
+    script.onload = function() {
+
+      console.log("API script đã tải");
+
+    };
+
+
+    // Nếu không tải được
+    script.onerror = function() {
+
+      if (finished) return;
+
+      finished = true;
+
+      box.className = "error";
+
+      box.innerHTML =
+        "❌ Không kết nối được hệ thống check-in";
+
+      delete window[callbackName];
+
+    };
+
+
+    // Thêm script vào HEAD
+    document.head.appendChild(script);
+
+
+    // Timeout 10 giây
+    setTimeout(function() {
+
+      if (finished) return;
+
+      finished = true;
+
+      box.className = "error";
+
+      box.innerHTML =
+        "❌ Hệ thống phản hồi quá lâu";
+
+      delete window[callbackName];
+
+    }, 10000);
+
+  }
+
+
+  // ==============================
+  // KHỞI ĐỘNG CAMERA
+  // ==============================
+
+  function startScanner() {
+
+    scanner =
+      new Html5QrcodeScanner(
+        "reader",
+        {
+          fps: 10,
+          qrbox: {
+            width: 250,
+            height: 250
+          }
+        },
+        false
+      );
+
+
+    scanner.render(
+
+      function(decodedText) {
+
+        console.log(
+          "QR được quét:",
+          decodedText
+        );
+
+
+        // Dừng scanner sau khi quét
+        scanner.clear();
+
+
+        // Gửi QR lên Apps Script
+        checkQR(decodedText);
+
+      },
+
+
+      function(errorMessage) {
+
+        // Không cần hiển thị lỗi quét liên tục
+
+      }
+
+    );
+
+  }
+
+
+  // ==============================
+  // START
+  // ==============================
+
+  startScanner();
 
 </script>
 
