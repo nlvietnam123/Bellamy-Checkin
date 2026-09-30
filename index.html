@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Bellamy Check-in</title>
+
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f6f8;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .box {
+      max-width: 500px;
+      margin: auto;
+      background: white;
+      padding: 25px;
+      border-radius: 20px;
+      box-shadow: 0 5px 25px rgba(0,0,0,.1);
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 5px;
+    }
+
+    .sub {
+      text-align: center;
+      color: #777;
+      margin-bottom: 20px;
+    }
+
+    #reader {
+      width: 100%;
+    }
+
+    #result {
+      margin-top: 20px;
+      padding: 20px;
+      border-radius: 15px;
+      text-align: center;
+      font-size: 20px;
+      font-weight: bold;
+      background: #eef1f5;
+    }
+
+    .success {
+      background: #e5f7ea !important;
+      color: #16803c;
+    }
+
+    .error {
+      background: #fde8e8 !important;
+      color: #c62828;
+    }
+
+    button {
+      margin-top: 15px;
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 10px;
+      background: #111;
+      color: white;
+      font-size: 16px;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="box">
+
+  <h1>Bellamy Check-in</h1>
+
+  <div class="sub">
+    Đưa QR vào khung để check-in
+  </div>
+
+  <div id="reader"></div>
+
+  <div id="result">
+    📷 Đang chờ quét QR...
+  </div>
+
+  <button onclick="location.reload()">
+    Quét mã tiếp theo
+  </button>
+
+</div>
+
+<script>
+
+let scanner;
+
+// Sẽ thay bằng link Google Apps Script của bạn ở bước sau
+const API_URL = "DAN_LINK_APPS_SCRIPT_VAO_DAY";
+
+function startScanner() {
+
+  scanner = new Html5QrcodeScanner(
+    "reader",
+    {
+      fps: 10,
+      qrbox: {
+        width: 250,
+        height: 250
+      }
+    },
+    false
+  );
+
+  scanner.render(
+    function(decodedText) {
+
+      scanner.clear();
+
+      document.getElementById("result").className = "";
+
+      document.getElementById("result").innerHTML =
+        "⏳ Đang kiểm tra QR...";
+
+      const callbackName =
+        "qrCallback_" + Date.now();
+
+      window[callbackName] = function(result) {
+
+        if (result.success) {
+
+          document.getElementById("result").className = "success";
+
+          document.getElementById("result").innerHTML =
+            "🟢 CHECK-IN THÀNH CÔNG<br><br>" +
+            result.name +
+            "<br>" +
+            result.company;
+
+        } else {
+
+          document.getElementById("result").className = "error";
+
+          document.getElementById("result").innerHTML =
+            result.message;
+
+        }
+
+        delete window[callbackName];
+      };
+
+      const script = document.createElement("script");
+
+      script.src =
+        API_URL +
+        "?token=" +
+        encodeURIComponent(decodedText) +
+        "&callback=" +
+        callbackName;
+
+      document.body.appendChild(script);
+    },
+
+    function(error) {
+      // Bỏ qua lỗi quét liên tục
+    }
+  );
+}
+
+startScanner();
+
+</script>
+
+</body>
+</html>
