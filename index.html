@@ -83,6 +83,24 @@
       font-size: 18px;
     }
 
+    #nextButton {
+      display: none;
+      width: 100%;
+      margin-top: 15px;
+      padding: 15px;
+      border: none;
+      border-radius: 12px;
+      background: #111;
+      color: white;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    #nextButton:hover {
+      opacity: 0.9;
+    }
+
     .note {
       margin-top: 20px;
       text-align: center;
@@ -108,6 +126,10 @@
     📷 Đưa mã QR vào khung để quét
   </div>
 
+  <button id="nextButton" onclick="scanNext()">
+    🔄 Quét QR tiếp theo
+  </button>
+
   <div class="note">
     Mỗi mã QR chỉ được Check-in một lần.
   </div>
@@ -117,28 +139,21 @@
 
 <script>
 
-/* =====================================================
-   API CHECK-IN MỚI
-   ===================================================== */
-
 const API_URL =
   "https://script.google.com/macros/s/AKfycbwPMSvlAgB4YrHzoEow2gLsq259kyMMz-Gho41pwEw-8Ocq5pcYdwA5TI726ODHrudw-Q/exec";
 
-
-/* =====================================================
-   BIẾN HỆ THỐNG
-   ===================================================== */
-
 let isChecking = false;
+let scanner;
 
 
-/* =====================================================
+/* ================================
    HIỂN THỊ KẾT QUẢ
-   ===================================================== */
+================================ */
 
 function showResult(result) {
 
   const box = document.getElementById("result");
+  const nextButton = document.getElementById("nextButton");
 
   if (result.success) {
 
@@ -153,19 +168,23 @@ function showResult(result) {
       "📱 " + escapeHTML(result.phone) +
       "</div>";
 
+    nextButton.style.display = "block";
+
   } else {
 
     box.className = "error";
 
     box.innerHTML =
       result.message || "❌ Có lỗi xảy ra";
+
+    nextButton.style.display = "block";
   }
 }
 
 
-/* =====================================================
-   CHỐNG HTML INJECTION
-   ===================================================== */
+/* ================================
+   ESCAPE HTML
+================================ */
 
 function escapeHTML(value) {
 
@@ -178,9 +197,9 @@ function escapeHTML(value) {
 }
 
 
-/* =====================================================
-   GỌI API CHECK-IN
-   ===================================================== */
+/* ================================
+   CHECK QR
+================================ */
 
 function checkQR(decodedText) {
 
@@ -191,14 +210,15 @@ function checkQR(decodedText) {
   isChecking = true;
 
   const box = document.getElementById("result");
+  const nextButton = document.getElementById("nextButton");
 
   box.className = "loading";
 
   box.innerHTML =
     "⏳ <strong>Đang kiểm tra QR...</strong>";
 
+  nextButton.style.display = "none";
 
-  /* Tạo tên callback ngẫu nhiên */
 
   const callbackName =
     "qrCallback_" +
@@ -206,11 +226,8 @@ function checkQR(decodedText) {
     "_" +
     Math.floor(Math.random() * 100000);
 
-
   let finished = false;
 
-
-  /* Callback nhận kết quả từ Apps Script */
 
   window[callbackName] = function(result) {
 
@@ -228,8 +245,6 @@ function checkQR(decodedText) {
   };
 
 
-  /* Dọn callback và script */
-
   function cleanup() {
 
     delete window[callbackName];
@@ -240,11 +255,9 @@ function checkQR(decodedText) {
 
     setTimeout(function() {
       isChecking = false;
-    }, 1500);
+    }, 1000);
   }
 
-
-  /* Tạo URL API */
 
   const url =
     API_URL +
@@ -254,16 +267,11 @@ function checkQR(decodedText) {
     callbackName;
 
 
-  /* Tạo script JSONP */
-
   const script = document.createElement("script");
 
   script.src = url;
-
   script.async = true;
 
-
-  /* Nếu API lỗi */
 
   script.onerror = function() {
 
@@ -280,14 +288,14 @@ function checkQR(decodedText) {
     box.innerHTML =
       "❌ Không kết nối được hệ thống Check-in.";
 
+    document.getElementById("nextButton").style.display = "block";
+
     cleanup();
   };
 
 
   document.head.appendChild(script);
 
-
-  /* Timeout 10 giây */
 
   const timeout = setTimeout(function() {
 
@@ -301,18 +309,39 @@ function checkQR(decodedText) {
 
     box.innerHTML =
       "❌ Hệ thống phản hồi quá lâu.<br>" +
-      "Vui lòng thử quét lại.";
+      "Vui lòng thử lại.";
+
+    document.getElementById("nextButton").style.display = "block";
 
     cleanup();
 
   }, 10000);
-
 }
 
 
-/* =====================================================
-   KHỞI TẠO CAMERA QR
-   ===================================================== */
+/* ================================
+   QUÉT QR TIẾP THEO
+================================ */
+
+function scanNext() {
+
+  isChecking = false;
+
+  const box = document.getElementById("result");
+  const nextButton = document.getElementById("nextButton");
+
+  box.className = "";
+
+  box.innerHTML =
+    "📷 Đưa mã QR vào khung để quét";
+
+  nextButton.style.display = "none";
+}
+
+
+/* ================================
+   SCANNER
+================================ */
 
 function onScanSuccess(decodedText) {
 
@@ -321,31 +350,24 @@ function onScanSuccess(decodedText) {
 }
 
 
-/* =====================================================
-   KHỞI ĐỘNG SCANNER
-   ===================================================== */
+scanner = new Html5QrcodeScanner(
+  "reader",
+  {
+    fps: 10,
 
-const scanner =
-  new Html5QrcodeScanner(
-    "reader",
-    {
-      fps: 10,
-
-      qrbox: {
-        width: 250,
-        height: 250
-      },
-
-      rememberLastUsedCamera: true,
-
-      supportedScanTypes: [
-        Html5QrcodeScanType.SCAN_TYPE_CAMERA
-      ]
+    qrbox: {
+      width: 250,
+      height: 250
     },
 
-    false
-  );
+    rememberLastUsedCamera: true,
 
+    supportedScanTypes: [
+      Html5QrcodeScanType.SCAN_TYPE_CAMERA
+    ]
+  },
+  false
+);
 
 scanner.render(onScanSuccess);
 
